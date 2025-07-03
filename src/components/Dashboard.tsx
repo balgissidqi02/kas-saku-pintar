@@ -1,61 +1,101 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { Plus, Package, Users, ShoppingCart, TrendingUp } from "lucide-react";
 import { useState } from "react";
-import { TransactionForm } from "./TransactionForm";
-import { CashFlowChart } from "./CashFlowChart";
-import { TransactionList } from "./TransactionList";
+import { ProductForm } from "./ProductForm";
+import { ProductCatalog } from "./ProductCatalog";
+import { OrderList } from "./OrderList";
 
-interface Transaction {
+interface Product {
   id: string;
-  type: 'pemasukan' | 'pengeluaran';
-  amount: number;
+  name: string;
+  price: number;
+  stock: number;
+  unit: string;
+  image?: string;
   category: string;
-  note?: string;
+  date: string;
+}
+
+interface Order {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  items: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    price: number;
+  }>;
+  total: number;
+  status: 'pending' | 'confirmed' | 'delivered';
+  deliveryMethod: 'pickup' | 'delivery';
   date: string;
 }
 
 export function Dashboard() {
-  const [showTransactionForm, setShowTransactionForm] = useState(false);
-  const [transactions, setTransactions] = useState<Transaction[]>([
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [products, setProducts] = useState<Product[]>([
     {
       id: '1',
-      type: 'pemasukan',
-      amount: 150000,
-      category: 'Penjualan',
-      note: 'Jualan bakso',
+      name: 'Bayam Segar',
+      price: 5000,
+      stock: 20,
+      unit: 'ikat',
+      category: 'Sayuran Daun',
       date: new Date().toISOString(),
     },
     {
       id: '2',
-      type: 'pengeluaran',
-      amount: 75000,
-      category: 'Bahan Baku',
-      note: 'Beli daging dan sayuran',
+      name: 'Tomat Merah',
+      price: 12000,
+      stock: 15,
+      unit: 'kg',
+      category: 'Sayuran Buah',
       date: new Date().toISOString(),
     },
   ]);
 
-  const todayIncome = transactions
-    .filter(t => t.type === 'pemasukan' && 
-      new Date(t.date).toDateString() === new Date().toDateString())
-    .reduce((sum, t) => sum + t.amount, 0);
+  const [orders, setOrders] = useState<Order[]>([
+    {
+      id: '1',
+      customerName: 'Ibu Sari',
+      customerPhone: '081234567890',
+      items: [
+        { productId: '1', productName: 'Bayam Segar', quantity: 2, price: 5000 }
+      ],
+      total: 10000,
+      status: 'pending',
+      deliveryMethod: 'pickup',
+      date: new Date().toISOString(),
+    }
+  ]);
 
-  const todayExpense = transactions
-    .filter(t => t.type === 'pengeluaran' && 
-      new Date(t.date).toDateString() === new Date().toDateString())
-    .reduce((sum, t) => sum + t.amount, 0);
+  const todayProducts = products.length;
+  const todayOrders = orders.filter(o => 
+    new Date(o.date).toDateString() === new Date().toDateString()
+  ).length;
+  const todaySales = orders
+    .filter(o => 
+      new Date(o.date).toDateString() === new Date().toDateString() &&
+      o.status === 'delivered'
+    )
+    .reduce((sum, o) => sum + o.total, 0);
 
-  const todayBalance = todayIncome - todayExpense;
-
-  const handleAddTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
+  const handleAddProduct = (product: Omit<Product, 'id' | 'date'>) => {
+    const newProduct: Product = {
+      ...product,
       id: Date.now().toString(),
       date: new Date().toISOString(),
     };
-    setTransactions([newTransaction, ...transactions]);
-    setShowTransactionForm(false);
+    setProducts([newProduct, ...products]);
+    setShowProductForm(false);
+  };
+
+  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, status } : order
+    ));
   };
 
   const formatCurrency = (amount: number) => {
@@ -66,11 +106,11 @@ export function Dashboard() {
     }).format(amount);
   };
 
-  if (showTransactionForm) {
+  if (showProductForm) {
     return (
-      <TransactionForm
-        onSubmit={handleAddTransaction}
-        onCancel={() => setShowTransactionForm(false)}
+      <ProductForm
+        onSubmit={handleAddProduct}
+        onCancel={() => setShowProductForm(false)}
       />
     );
   }
@@ -79,8 +119,8 @@ export function Dashboard() {
     <div className="min-h-screen bg-gradient-subtle p-4 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2 animate-fade-in">
-        <h1 className="text-2xl font-bold text-foreground">Kas Saku Pintar</h1>
-        <p className="text-muted-foreground">Kelola keuangan harian dengan mudah</p>
+        <h1 className="text-2xl font-bold text-foreground">Toko Sayur Digital</h1>
+        <p className="text-muted-foreground">Kelola toko sayur dengan mudah</p>
       </div>
 
       {/* Today's Summary Cards */}
@@ -88,13 +128,27 @@ export function Dashboard() {
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-success" />
-              Pemasukan Hari Ini
+              <Package className="h-4 w-4 text-primary" />
+              Total Produk
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">
+              {todayProducts}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4 text-success" />
+              Pesanan Hari Ini
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {formatCurrency(todayIncome)}
+              {todayOrders}
             </div>
           </CardContent>
         </Card>
@@ -102,64 +156,51 @@ export function Dashboard() {
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-destructive" />
-              Pengeluaran Hari Ini
+              <TrendingUp className="h-4 w-4 text-success" />
+              Penjualan Hari Ini
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {formatCurrency(todayExpense)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Saldo Bersih
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${
-              todayBalance >= 0 ? 'text-success' : 'text-destructive'
-            }`}>
-              {formatCurrency(todayBalance)}
+            <div className="text-2xl font-bold text-success">
+              {formatCurrency(todaySales)}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Chart */}
-      <Card className="shadow-card animate-fade-in">
-        <CardHeader>
-          <CardTitle className="text-lg">Arus Kas 7 Hari Terakhir</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CashFlowChart transactions={transactions} />
-        </CardContent>
-      </Card>
 
       {/* Action Button */}
       <div className="flex justify-center animate-scale-in">
         <Button
           variant="hero"
           size="lg"
-          onClick={() => setShowTransactionForm(true)}
+          onClick={() => setShowProductForm(true)}
           className="w-full max-w-sm h-14 text-lg font-semibold"
         >
           <Plus className="mr-2 h-6 w-6" />
-          Catat Transaksi
+          Tambah Produk
         </Button>
       </div>
 
-      {/* Recent Transactions */}
+      {/* Product Catalog */}
       <Card className="shadow-card animate-fade-in">
         <CardHeader>
-          <CardTitle className="text-lg">Transaksi Terbaru</CardTitle>
+          <CardTitle className="text-lg">Katalog Produk</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionList transactions={transactions.slice(0, 5)} />
+          <ProductCatalog products={products} />
+        </CardContent>
+      </Card>
+
+      {/* Recent Orders */}
+      <Card className="shadow-card animate-fade-in">
+        <CardHeader>
+          <CardTitle className="text-lg">Pesanan Masuk</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OrderList 
+            orders={orders.slice(0, 5)} 
+            onUpdateStatus={handleUpdateOrderStatus}
+          />
         </CardContent>
       </Card>
     </div>
